@@ -7,13 +7,14 @@ from sequential_dataloader import SequentialDataset
 
 import torch
 from tqdm import tqdm
-from model import DQLR
+from model import DQLR, DQLRnn
 
 
 def saveImgs(img1,img2,savePath):
-	
+	# print("COMP",torch.cat([img1, img2]).size())
+    # quit()
 	utils.save_image(
-                torch.cat([img1, img2], 0),
+                torch.cat([img1, img2], 1),
                 savePath,
                 nrow=2,
                 normalize=True,
@@ -60,14 +61,15 @@ if __name__ == '__main__':
 
     transform = transforms.Compose(
         [
-            transforms.Scale(256),
-            transforms.CenterCrop(256),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.Scale(512),
+            transforms.CenterCrop(512),
             transforms.ToTensor(),
-            transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+            transforms.Normalize([0.5], [0.5]),
         ]
     )
 
-    model = DQLR()
+    model = DQLRnn()
     pretrained_path = args.pretrained
 
     try:
@@ -88,18 +90,24 @@ if __name__ == '__main__':
         #import pdb; pdb.set_trace()
         img, imgs = img.cuda(), imgs.cuda()
         #imgs = imgs.unsqueeze_(0)
+        print("img:{} imgs:{}".format(img.size(), imgs.size()))
         with torch.no_grad():
-            out, _ = model(img.unsqueeze_(0))
+            out, _ = model(imgs)
 
         # Two Images side by side - url to the saved path.
+        # print(out.size())
+        out = out.squeeze(0)
+        imgs = imgs.squeeze(0)
 
+        print(out.size())
+        print(imgs.size())
         saveImg(out[0],'{0}/predicted/1/1_{1}.png'.format(args.out_path,str(t_idx).zfill(3)))
         saveImg(out[1],'{0}/predicted/{1}/{1}_{2}.png'.format(args.out_path,str(args.jump + 1),str(t_idx).zfill(3)))
         saveImg(out[2],'{0}/predicted/{1}/{1}_{2}.png'.format(args.out_path,str(2*args.jump + 1),str(t_idx).zfill(3)))
        
-        saveImgs(imgs[0,:,:,:].unsqueeze_(0), out[0],'{0}/comparison/1_1/1_{1}_{2}.png'.format(args.out_path,'1', str(t_idx).zfill(3)))
-        saveImgs(imgs[1,:,:,:].unsqueeze_(0), out[1],'{0}/comparison/1_{1}/1_{1}_{2}.png'.format(args.out_path,str(args.jump + 1),str(t_idx).zfill(3)))
-        saveImgs(imgs[2,:,:,:].unsqueeze_(0), out[2],'{0}/comparison/1_{1}/1_{1}_{2}.png'.format(args.out_path,str(2*args.jump + 1),str(t_idx).zfill(3)))
+        saveImgs(imgs[0,:,:,:], out[0],'{0}/comparison/1_1/1_{1}_{2}.png'.format(args.out_path,'1', str(t_idx).zfill(3)))
+        saveImgs(imgs[1,:,:,:], out[1],'{0}/comparison/1_{1}/1_{1}_{2}.png'.format(args.out_path,str(args.jump + 1),str(t_idx).zfill(3)))
+        saveImgs(imgs[2,:,:,:], out[2],'{0}/comparison/1_{1}/1_{1}_{2}.png'.format(args.out_path,str(2*args.jump + 1),str(t_idx).zfill(3)))
 
         #
        

@@ -22,7 +22,7 @@ class SequentialDataset(Dataset):
             preprocess (bool): Determines whether to preprocess dataset. Default is False.
     """
 
-    def __init__(self, stack_dir, transform, clip_len=16,clip_jump=1, preprocess=False,deeper_layer=False):
+    def __init__(self, stack_dir, transform, clip_len=16,clip_jump=1, preprocess=False,deeper_layer=False, size=512):
         print('Incomplete implementation. Works only for one stack in the plant.')
         
         self.stack_dir = stack_dir
@@ -31,9 +31,9 @@ class SequentialDataset(Dataset):
         self.clip_jump = clip_jump
         self.transform = transform
         # The following three parameters are chosen as described in the paper section 4.1
-        self.resize_height = 256
-        self.resize_width = 256
-        self.crop_size = 256
+        self.resize_height = size
+        self.resize_width = size
+        self.crop_size = size
      
         #assert (self.clip_len % self.clip_jump) == 0
         #assert self.clip_len > self.clip_jump 
@@ -41,7 +41,7 @@ class SequentialDataset(Dataset):
         self.stack_names, labels = [], []
         self.frame_names = []
         self.stack_len = []
-        for label in sorted(os.listdir(folder)):
+        for label in sorted(os.listdir(folder),reverse=True):
             for fname in os.listdir(os.path.join(folder, label)):
                 self.stack_names.append(os.path.join(folder, label, fname))
                 stack_fnames = sorted(os.listdir(self.stack_names[-1]))
@@ -67,13 +67,13 @@ class SequentialDataset(Dataset):
         #print(index)
         
         buffer_list = self.load_frames(self.frame_names)
-        buffer = np.empty((self.clip_len, 3, self.resize_height, self.resize_width), np.dtype('float32'))
+        buffer = np.empty((self.clip_len, 1, self.resize_height, self.resize_width), np.dtype('float32'))
         buffer_list = self.get_nFrames(buffer_list, self.clip_len, self.clip_jump, index)
         
         for i in range(len(buffer_list)):
             buffer[i] = self.transform(buffer_list[i])
 
-        return torch.from_numpy(buffer[0]), torch.from_numpy(buffer)
+        return torch.from_numpy(buffer[0]), torch.from_numpy(np.expand_dims(buffer,0))
 
     def load_frames(self, frames):
         buffer_list = []

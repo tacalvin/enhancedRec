@@ -22,7 +22,7 @@ class VideoDataset(Dataset):
             preprocess (bool): Determines whether to preprocess dataset. Default is False.
     """
 
-    def __init__(self, output_dir, transform, split='train', clip_len=16,clip_jump=1, preprocess=False,deeper_layer=False):
+    def __init__(self, output_dir, transform, split='train', size = 256, clip_len=16,clip_jump=1, preprocess=False,deeper_layer=False):
         #self.root_dir, self.output_dir = Path.db_dir(dataset)
         self.output_dir = output_dir
         folder = os.path.join(self.output_dir, split)
@@ -31,13 +31,14 @@ class VideoDataset(Dataset):
         self.split = split
         self.transform = transform
         # The following three parameters are chosen as described in the paper section 4.1
-        self.resize_height = 256
-        self.resize_width = 256
-        self.crop_size = 256
+        self.resize_height = size
+        self.resize_width = size
+        self.crop_size = size
      
         self.fnames, labels = [], []
         for label in sorted(os.listdir(folder)):
             for fname in os.listdir(os.path.join(folder, label)):
+                # print(fname)
                 self.fnames.append(os.path.join(folder, label, fname))
                 labels.append(label)
 
@@ -51,19 +52,21 @@ class VideoDataset(Dataset):
 
      
     def __len__(self):
-        return 150*len(self.fnames)
+        return 250*len(self.fnames)
 
     def __getitem__(self, index):
         
         # Loading and preprocessing.
-        buffer_list, frame_count = self.load_frames(self.fnames[int(index/150)])
+        buffer_list, frame_count = self.load_frames(self.fnames[int(index/250)])
         
-        buffer = np.empty((self.clip_len, 3, self.resize_height, self.resize_width), np.dtype('float32'))
+        buffer = np.empty((self.clip_len, 1, self.resize_height, self.resize_width), np.dtype('float32'))
         
         buffer_list = self.get_nFrames(buffer_list, self.clip_len,self.clip_jump)
                 
         for i in range(len(buffer_list)):
+            # print("IMAGE SIZE: {}".format(self.transform(buffer_list[i]).shape))
             buffer[i] = self.transform(buffer_list[i])
+            
         return torch.from_numpy(buffer[0]), torch.from_numpy(buffer)    
 
     def load_frames(self, file_dir):
@@ -71,7 +74,7 @@ class VideoDataset(Dataset):
         frame_count = len(frames)
         buffer_list = [] 
         for i, frame_name in enumerate(frames):
-            frame = Image.open(frame_name).convert('RGB')
+            frame = Image.open(frame_name)#.convert('RGB')
             buffer_list.append(frame)           
         return buffer_list, frame_count
     
@@ -91,16 +94,32 @@ class VideoDataset(Dataset):
 
 
 if __name__ == "__main__":
-    DATA_DIR = '/home/agupt013/projects/reconstruction/vq-vae-2-pytorch/data/'
+    DATA_DIR = '/home/cegrad/calta/transitionRec/data/'
     from torch.utils.data import DataLoader
-    train_data = VideoDataset(DATA_DIR, split='train', clip_len=3, preprocess=False)
-    train_loader = DataLoader(train_data, batch_size=10, shuffle=True, num_workers=4)
+    transform = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.CenterCrop(256),
+            transforms.ToTensor(),
+            transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        ]
+    )
+    train_data = VideoDataset(DATA_DIR, split='train', clip_len=7, preprocess=False, transform=transform)
+    train_loader = DataLoader(train_data, batch_size=10, shuffle=False, num_workers=4)
+    print(len(train_data))
 
-    for i, sample in enumerate(train_loader):
-        inputs = sample[0]
-        labels = sample[1]
-        print(inputs)
-        print(labels.size())
+    test = {}
+    for i in range(5750):
+        if int(i/250) not in test.keys():
+            test[int(i/250)] = 0
+        else:
+            test[int(i/250)] += 1
+    # print(test)
+    # for i, sample in enumerate(train_loader):
+    #     inputs = sample[0]
+    #     labels = sample[1]
+    #     print(inputs.size())
+    #     print(labels.size())
 
-        if i == 1:
-            break
+    #     if i == 1:
+    #         break
